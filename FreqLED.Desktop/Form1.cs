@@ -60,22 +60,20 @@ namespace FreqLED.Desktop
         private void Form1_Load(object sender, EventArgs e)
         {
 
-            trackBar1.Value = trackBar1.Maximum;
-            trackBar2.Value = trackBar2.Maximum;
-            trackBar3.Value = trackBar3.Maximum;
-            trackBar4.Value = trackBar4.Maximum;
-            trackBar5.Value = trackBar5.Maximum;
-
-            user_color[0] = trackBar1.Value;
-            user_color[1] = trackBar2.Value;
-            user_color[2] = trackBar3.Value;
-            user_aux[0] = trackBar4.Value;
-            user_aux[1] = trackBar5.Value;
-
+            RedTrackBar.Value = RedTrackBar.Maximum;
+            GreenTrackBar.Value = GreenTrackBar.Maximum;
+            BlueTrackBar.Value = BlueTrackBar.Maximum;
+            Aux1TrackBar.Value = Aux1TrackBar.Maximum;
+            Aux2Trackbar.Value = Aux2Trackbar.Maximum;
 
             deviceEnumerator = new MMDeviceEnumerator();
+
+            DevicesComboBox.DataSource = deviceEnumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active).ToList();
+            DevicesComboBox.ValueMember = nameof(MMDevice.ID);
+            DevicesComboBox.DisplayMember = nameof(MMDevice.FriendlyName);
+
             device = deviceEnumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
-            label2.Text = device.DeviceFriendlyName;
+            DevicesComboBox.SelectedValue = device.ID;
 
             comboBox1.DataSource = effects;
             comboBox1.ValueMember = nameof(LEDEffect.Id);
@@ -99,6 +97,10 @@ namespace FreqLED.Desktop
                 button.Tag = effect.Id;
                 button.Text = $"{effect.Id}\n{effect.Name}";
                 button.Click += SetEffect_Click;
+                button.FlatStyle = FlatStyle.Flat;
+                button.FlatAppearance.BorderSize = 0;
+                button.Margin = new Padding(10);
+                button.BackColor = Color.FromArgb(255, 30, 30, 30);
                 FxSelectorButtons.Add(button);
             }
 
@@ -117,23 +119,20 @@ namespace FreqLED.Desktop
 
             flowLayoutPanel2.Controls.AddRange(pictureBoxes.ToArray());
 
-            port = new SerialPort();
-            port.BaudRate = 19200;
-            port.PortName = "COM3";
-            port.Handshake = Handshake.None;
-            port.Parity = Parity.None;
-            port.DataBits = 8;
-            port.StopBits = StopBits.One;
-            port.WriteBufferSize = 8192;
-            port.ReadBufferSize = 8192;
-            port.DataReceived += new SerialDataReceivedEventHandler(sp_DataReceived);
-            port.DtrEnable = true;
-            port.Open();
-            port.DiscardInBuffer();
+            LoadAvailablePorts();
 
             //txStopwatch.Start();
 
             backgroundWorker1.RunWorkerAsync();
+        }
+
+        private void LoadAvailablePorts()
+        {
+            COMDevicesComboBox.Items.Clear();
+            foreach (string port in SerialPort.GetPortNames())
+            {
+                COMDevicesComboBox.Items.Add(port);
+            }
         }
 
         private void SetEffect_Click(object? sender, EventArgs e)
@@ -147,9 +146,9 @@ namespace FreqLED.Desktop
 
             if (button != null)
             {
-                user_color[0] = trackBar1.Value;
-                user_color[1] = trackBar2.Value;
-                user_color[2] = trackBar3.Value;
+                user_color[0] = RedTrackBar.Value;
+                user_color[1] = GreenTrackBar.Value;
+                user_color[2] = BlueTrackBar.Value;
                 comboBox1.SelectedValue = button.Tag;
             }
         }
@@ -322,21 +321,6 @@ namespace FreqLED.Desktop
         {
             richTextBox1.AppendText(data.Trim() + Environment.NewLine);
             richTextBox1.ScrollToCaret();
-        }
-
-        private void trackBar1_Scroll(object sender, EventArgs e)
-        {
-            user_color[0] = trackBar1.Value;
-        }
-
-        private void trackBar2_Scroll(object sender, EventArgs e)
-        {
-            user_color[1] = trackBar2.Value;
-        }
-
-        private void trackBar3_Scroll(object sender, EventArgs e)
-        {
-            user_color[2] = trackBar3.Value;
         }
 
         private void SimpleColorVumeter(int volume, int r, int g, int b)
@@ -599,29 +583,107 @@ namespace FreqLED.Desktop
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
             timer1.Stop();
-            if (port.IsOpen)
+            if (port != null && port.IsOpen)
             {
                 port.Close();
             }
+
             if (backgroundWorker1.IsBusy)
             {
                 backgroundWorker1.CancelAsync();
             }
         }
 
-        private void trackBar4_Scroll(object sender, EventArgs e)
-        {
-            user_aux[0] = trackBar4.Value;
-        }
-
-        private void trackBar5_Scroll(object sender, EventArgs e)
-        {
-            user_aux[1] = trackBar5.Value;
-        }
-
         private void backgroundWorker1_ProgressChanged(object sender, ProgressChangedEventArgs e)
         {
-            label1.Text = $"{e.ProgressPercentage} FPS";
+            PreviewFPSLabel.Text = $"{e.ProgressPercentage} FPS";
+        }
+
+        private void RedTrackBar_ValueChanged(object sender, EventArgs e)
+        {
+            user_color[0] = RedTrackBar.Value;
+            RedTrackbarLabel.Text = RedTrackBar.Value.ToString();
+            RedTrackBarColor.BackColor = Color.FromArgb(RedTrackBar.Value, 0, 0);
+            TrackBarsColor.BackColor = Color.FromArgb(RedTrackBar.Value, GreenTrackBar.Value, BlueTrackBar.Value);
+        }
+
+        private void GreenTrackBar_ValueChanged(object sender, EventArgs e)
+        {
+            user_color[1] = GreenTrackBar.Value;
+            GreenTrackbarLabel.Text = GreenTrackBar.Value.ToString();
+            GreenTrackBarColor.BackColor = Color.FromArgb(0, GreenTrackBar.Value, 0);
+            TrackBarsColor.BackColor = Color.FromArgb(RedTrackBar.Value, GreenTrackBar.Value, BlueTrackBar.Value);
+        }
+
+        private void BlueTrackBar_ValueChanged(object sender, EventArgs e)
+        {
+            user_color[2] = BlueTrackBar.Value;
+            BlueTrackbarLabel.Text = BlueTrackBar.Value.ToString();
+            BlueTrackBarColor.BackColor = Color.FromArgb(0, 0, BlueTrackBar.Value);
+            TrackBarsColor.BackColor = Color.FromArgb(RedTrackBar.Value, GreenTrackBar.Value, BlueTrackBar.Value);
+        }
+
+        private void Aux1TrackBar_ValueChanged(object sender, EventArgs e)
+        {
+            user_aux[0] = Aux1TrackBar.Value;
+            Aux1TrackbarLabel.Text = Aux1TrackBar.Value.ToString();
+        }
+
+        private void Aux2Trackbar_ValueChanged(object sender, EventArgs e)
+        {
+            user_aux[1] = Aux2Trackbar.Value;
+            Aux2TrackbarLabel.Text = Aux2Trackbar.Value.ToString();
+        }
+
+        private void DevicesComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            var comboBox = (ComboBox)sender;
+            device = (MMDevice)comboBox.SelectedItem!;
+            AudioDeviceName.Text = device.DeviceFriendlyName;
+            AudioDeviceType.Text = device.State.ToString();
+        }
+
+        private void ConnectCOMDeviceButton_Click(object sender, EventArgs e)
+        {
+            if (port != null && port.IsOpen)
+            {
+                port.Close();
+                ConnectCOMDeviceButton.Text = "Connect";
+                return;
+            }
+
+            if (string.IsNullOrEmpty(COMDevicesComboBox.Text))
+            {
+                MessageBox.Show("Please select a port...");
+                return;
+            }
+
+            try
+            {
+                port = new SerialPort();
+                port.BaudRate = 19200;
+                port.PortName = COMDevicesComboBox.Text;
+                //port.Handshake = Handshake.None;
+                port.Parity = Parity.None;
+                port.DataBits = 8;
+                port.StopBits = StopBits.One;
+                //port.WriteBufferSize = 8192;
+                //port.ReadBufferSize = 8192;
+                port.DataReceived += new SerialDataReceivedEventHandler(sp_DataReceived);
+                port.DtrEnable = true;
+                port.Open();
+                port.DiscardInBuffer();
+                ConnectCOMDeviceButton.Text = "Disconnect";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Connection failed...");
+            }
+        }
+
+        private void RefreshCOMDevicesButton_Click(object sender, EventArgs e)
+        {
+            LoadAvailablePorts();
         }
     }
 
